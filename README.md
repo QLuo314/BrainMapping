@@ -1,83 +1,89 @@
-# BrainMapping: A Computational Framework for Bidirectional Cross-Species Functional Mapping
+# Biologically inspired alignment reveals distributed and directionally asymmetric correspondence between rat and human cortices
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> Learning bidirectional functional correspondence between human and rat brains from resting-state fMRI.
+> **BrainMapping** learns distributed, bidirectional functional correspondence between rat and human cortices from resting-state fMRI.
 
 ## Overview
 
-**BrainMapping** is a computational framework for learning bidirectional functional correspondence between **human** and **rat** brains from resting-state fMRI (rs-fMRI).
+Rodent models enable causal investigation of brain circuits, but translating their systems-level organization to humans requires correspondence beyond one-to-one anatomical homology.
 
-Rather than assuming that anatomical homology alone is sufficient to define cross-species equivalence, BrainMapping learns **region-of-interest (ROI) representations in a shared functional space** and infers **distributed correspondences** between species. This allows cross-species comparison at the level of intrinsic functional organization, even when direct anatomical matching is incomplete or biologically implausible.
+**BrainMapping** is a biologically inspired framework that combines shared rs-fMRI representations with graph alignment and optimal transport to infer **probabilistic, many-to-many cortical correspondences**. It represents each region of interest (ROI) using voxel-wise time series and relates regions through their intrinsic activity and distributed functional organization, without imposing predefined rat-human ROI matches.
 
-The framework is motivated by a central challenge in translational neuroscience: rodent models provide powerful access to cellular and circuit mechanisms, yet these findings often do not transfer cleanly to large-scale human brain organization. BrainMapping aims to help bridge this gap by relating localized rodent findings to distributed human brain networks.
+The study asks whether these mappings preserve functional organization in held-out subjects and whether preservation depends on mapping direction. The resulting maps provide a framework for expressing rat functional organization in human functional-network coordinates and generating testable cross-species hypotheses.
 
 ## Motivation
 
-Establishing functional correspondence across species is difficult for several reasons:
-
-- Similar anatomy does not necessarily imply similar large-scale function.
-- Direct ROI-level cross-species correspondence labels are not available.
-- Strict one-to-one matching is often biologically implausible across species with different cortical scales, acquisition conditions, and evolutionary histories.
-
-A useful cross-species mapping should therefore do more than pair individual regions. It should preserve broader principles of intrinsic brain organization, including **network structure**, **macroscale gradients**, and **graph topology**.
+- Anatomical reference points alone may not capture how functional organization is distributed across species.
+- Differences in cortical scale, parcellation and evolutionary organization make strict one-to-one correspondence restrictive.
+- Direct rat-human ROI correspondence labels are unavailable, motivating evaluation through preservation of functional connectivity, cortical gradients and graph topology.
+- Human-to-rat and rat-to-human mappings need not preserve organization to the same extent.
 
 ## Framework
 
-BrainMapping is a three-stage framework for bidirectional cross-species functional alignment.
+BrainMapping comprises three stages.
 
 ### Stage 1: Cross-Species Representation Pretraining (CRP)
 
-A **shared-weight Transformer encoder** processes both human and rat ROI time series and learns a common representational space from intrinsic activity patterns.
+A **shared-weight Transformer encoder** processes voxel-wise ROI time series from both species and learns ROI-level features in a common latent space. Angular-margin supervision encourages separation of within-species ROI representations.
 
 ### Stage 2: Biology-Informed Representation Refinement (BIR)
 
-The pretrained ROI representations are refined using:
+The pretrained Transformer encoder is frozen, and ROI representations are refined through two objectives:
 
-- **Self-supervision**, through reconstruction of masked voxel information
-- **Biologically informed regularization**, based on principles of functional segregation and integration
+- **Masked-view self-supervision:** a BYOL-style online-target architecture matches representations of two masked views of the same ROI. This objective promotes representation agreement rather than reconstructing masked voxel intensities.
+- **Functional segregation-integration (FSI) supervision:** a cross-entropy classification objective uses predefined within-species network or cortical-system labels to regularize the features.
 
-This stage improves feature quality while preserving meaningful within-network structure and interpretability.
+These labels encode within-species organization; they do not supply rat-human ROI correspondence pairs.
 
 ### Stage 3: Bidirectional Graph Matching via Optimal Transport (BGM-OT)
 
-A **Graph Convolutional Network (GCN)** enriches ROI features with network-topological context, and an **optimal transport solver** (Sinkhorn algorithm) estimates a bidirectional probabilistic assignment matrix between species.
+Species-specific **K-nearest-neighbor feature graphs** are processed by a shared-weight **graph convolutional network (GCN)**. Entropy-regularized **optimal transport**, solved with Sinkhorn iterations, estimates a distributed cross-species transport plan.
 
-Rather than enforcing hard one-to-one matches, BrainMapping supports **distributed many-to-many correspondence**, which is more compatible with cross-species functional organization.
+Training combines feature alignment, graph-Laplacian spectral alignment and cycle consistency. Feature and topology alignment are defined in the human-to-rat direction, with a human-to-rat-to-human feature cycle. The resulting mapping supports transformations in both directions, although the training objectives are not directionally symmetric.
 
-## Key Contributions
+## Data and Atlas Definitions
 
-- Learns cross-species functional correspondence directly from **rs-fMRI**
-- Does **not rely on anatomical homology** as the primary basis for alignment
-- Builds a **shared functional representation space** for human and rat ROIs
-- Estimates **bidirectional** and **distributed** mappings between species
-- Incorporates **biological constraints** to improve interpretability and robustness
-- Evaluates correspondence through preservation of large-scale brain organization when ROI-level ground truth is unavailable
+| | Human | Rat |
+|---|---|---|
+| Dataset | WU-Minn HCP 1200 Subjects; 3T preprocessed `rfMRI-REST1` fMRIVolume data | 7T rs-fMRI from male Sprague-Dawley rats under anesthesia |
+| Subjects | 72: 57 training, 15 held-out | 54: 43 training, 11 held-out |
+| Atlas | Schaefer 100-parcel, 7-network atlas | SIGMA atlas |
+| Within-species labels | Seven functional networks | Four predefined cortical systems: frontal, parietal, occipital and temporal |
+
+Supplementary Tables S1 and S2 provide ROI identities, hemisphere labels and network/system assignments. Table S3 lists the human subject IDs and demographic information.
 
 ## Validation Strategy
 
-Because direct ROI-level cross-species ground truth is not available, BrainMapping is evaluated through **orthogonal preservation tests** rather than a single label-matching benchmark.
+The final map is estimated **using training subjects only**. Cross-species ROI cosine-similarity matrices are averaged over human-rat training-subject pairs, converted into a transport cost, and used to estimate a single mapping plan. That plan is **fixed before application to held-out subjects**.
 
-We assess whether mapped data retain key properties of native brain organization, including:
+Evaluation examines complementary aspects of target-space organization:
 
-- **Network-level functional connectivity**
-- **Macroscale functional gradients**
-- **Graph topology**
-- **Stability across held-out subjects**
+- **Functional connectivity:** network-level similarity between mapped and native within-network FC matrices.
+- **Functional gradients:** preservation of macroscale cortical organization.
+- **Graph topology:** agreement between mapped and native topological profiles.
+- **Representation stability:** inter-subject similarity and comparisons of training and held-out representations.
 
-This validation strategy is designed to test whether the learned mappings are biologically meaningful rather than merely statistically convenient.
+These tests assess preservation of functional organization, not direct ROI correspondence accuracy.
 
-## Findings
+## Main Findings
 
-BrainMapping recovers a subset of cross-species relationships supported by previous studies and also suggests candidate correspondences that may warrant further investigation.
+- **Distributed correspondence:** the learned maps express rat-human relationships as many-to-many functional associations.
+- **Held-out preservation:** fixed, training-derived maps preserve complementary aspects of FC, cortical gradients and graph topology.
+- **Directional asymmetry:** human-to-rat mapping preserves organization more uniformly across rat cortical systems. Rat-to-human FC preservation is stronger in default-mode, dorsal-attention and salience/ventral-attention networks than in visual and somatomotor networks.
+- **Biological hypotheses:** the maps recover literature-consistent default-mode and salience-system relationships and generate non-canonical candidate correspondences for further testing.
+
+Directional differences must be interpreted in the context of acquisition conditions, atlas granularity, target-system definitions and the asymmetric training objectives. Individual correspondences are functional hypotheses, not confirmed anatomical or evolutionary homologues. A compression-expansion interpretation remains a hypothesis rather than an established mechanism.
 
 ## Interactive Exploration
 
-We also provide an interactive web tool for exploring the inferred cross-species mappings.
+The manuscript and supplementary information describe the [BrainMapping visualization platform](http://www.brmapping.com) for exploring cross-species ROI similarity profiles.
+
+Supplementary Figs. S1-S4 illustrate human-to-rat exploration from human FrOperIns 1 and OFC 1, and rat-to-human exploration from rat orbitofrontal and agranular insular regions. Supplementary Tables S4 and S5 list the top five cross-species targets for selected seeds; their reported scores are cosine similarities.
 
 ## Repository Status
 
-This repository accompanies the **BrainMapping** paper. Code, pretrained models, and detailed usage instructions will be released after publication.
+This repository accompanies the **BrainMapping** manuscript. It currently contains project documentation; code, pretrained models and detailed usage instructions have not yet been added. Their release remains planned for after publication.
 
 ## Planned Contents
 
@@ -89,7 +95,11 @@ This repository accompanies the **BrainMapping** paper. Code, pretrained models,
 
 ## Citation
 
-Citation information will be added here upon publication.
+**Biologically inspired alignment reveals distributed and directionally asymmetric correspondence between rat and human cortices**
+
+Xingbo Dong, Qiang Luo, Aoling Cai, Zhe Jin, Chaoxu Mu, Fei Wang and Hongming Shan.
+
+Publication details and a formatted citation will be added upon publication.
 
 ## License
 
