@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="http://www.brmapping.com"><img src="https://img.shields.io/badge/Interactive-Demo-487C9E" alt="Interactive Demo"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="Apache 2.0 License"></a>
 </p>
 
 <p align="center">
@@ -68,4 +68,4 @@ Publication details and BibTeX will be added when available.
 
 ## License
 
-This project is released under the [MIT License](LICENSE).
+This project is released under the [Apache License 2.0](LICENSE).
